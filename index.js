@@ -3,6 +3,15 @@ const cors = require("cors");
 const app = express();
 const port = process.env.PORT || 3000;
 const { MongoClient, ServerApiVersion } = require("mongodb");
+require("dotenv").config();
+
+const admin = require("firebase-admin");
+
+const serviceAccount = require("./book-pilot-adminsdk.json");
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
 
 //booksCollection
 // MuoQ3MxMJKxDg0ks
@@ -26,6 +35,23 @@ async function run() {
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
     // Send a ping to confirm a successful connection
+
+    const db = client.db("booksDB");
+    const booksCollection = db.collection("books");
+
+    //save a book data
+
+    app.post("/books", async (req, res) => {
+      const bookData = req.body;
+      const result = await booksCollection.insertOne(bookData);
+      res.send(result);
+    });
+
+    //get all books
+    app.get("/books", async (req, res) => {
+      const result = await booksCollection.find().toArray();
+      res.send(result);
+    });
 
     await client.db("admin").command({ ping: 1 });
     console.log(
