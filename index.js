@@ -93,7 +93,7 @@ async function run() {
           bookId: paymentInfo?.bookId,
           customer: paymentInfo?.customer.email,
         },
-        success_url: `${process.env.CLIENT_DOMAIN}/payment-success`,
+        success_url: `${process.env.CLIENT_DOMAIN}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${process.env.CLIENT_DOMAIN}/books/${paymentInfo?.bookId}`,
       });
       res.send({ url: session.url });
