@@ -46,11 +46,13 @@ async function run() {
 
     const db = client.db("booksDB");
     const booksCollection = db.collection("books");
+    const ordersCollection = db.collection("orders");
 
     //save a book data
 
     app.post("/books", async (req, res) => {
       const bookData = req.body;
+      console.log("Book data being saved:", bookData);
       const result = await booksCollection.insertOne(bookData);
       res.send(result);
     });
@@ -97,6 +99,90 @@ async function run() {
         cancel_url: `${process.env.CLIENT_DOMAIN}/books/${paymentInfo?.bookId}`,
       });
       res.send({ url: session.url });
+    });
+
+    app.post("/payment-success", async (req, res) => {
+      const { sessionId } = req.body;
+      const session = await stripe.checkout.sessions.retrieve(sessionId);
+      // console.log(session);
+
+      const book = await booksCollection.findOne({
+        _id: new ObjectId(session.metadata.bookId),
+      });
+
+      const order = await ordersCollection.findOne({
+        transactionId: session.payment_intent,
+      });
+
+      if (session.status === "complete" && book && !order) {
+        //save order data in db
+        const orderInfo = {
+          bookId: session.metadata.bookId,
+          transactionId: session.payment_intent,
+          customer: session.metadata.customer,
+          status: "pending",
+          // sellerEmail: book?.seller?.email,
+          // sellerName: book?.seller?.name,
+          seller: book.seller,
+          name: book.name,
+          status: book.status,
+          quantity: 1,
+          price: session.amount_total / 100,
+        };
+        const result = await ordersCollection.insertOne(orderInfo);
+        //update book quantity
+        await booksCollection.updateOne(
+          {
+            _id: new ObjectId(session.metadata.bookId),
+          },
+          { $inc: { quantity: -1 } }
+        );
+
+        return res.send({
+          transactionId: session.payment_intent,
+          orderId: result.insertedId,
+        });
+      }
+      res.send(
+        res.send({
+          transactionId: session.payment_intent,
+          orderId: order._id,
+        })
+      );
+    });
+
+    //get all orders for a customer by email
+    app.get("/my-orders/:email", async (req, res) => {
+      const email = req.params.email;
+      const result = await ordersCollection
+        .find({
+          customer: email,
+        })
+        .toArray();
+      res.send(result);
+    });
+
+    //manage orders
+    //get all orders for a seller by email
+    app.get("/manage-orders/:email", async (req, res) => {
+      const email = req.params.email;
+      const result = await ordersCollection
+        .find({
+          "seller.email": email,
+        })
+        .toArray();
+      res.send(result);
+    });
+
+    //inventory
+    app.get("/my-inventory/:email", async (req, res) => {
+      const email = req.params.email;
+      const result = await ordersCollection
+        .find({
+          "seller.email": email,
+        })
+        .toArray();
+      res.send(result);
     });
 
     await client.db("admin").command({ ping: 1 });
