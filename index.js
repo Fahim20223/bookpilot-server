@@ -121,13 +121,12 @@ async function run() {
           transactionId: session.payment_intent,
           customer: session.metadata.customer,
           status: "pending",
-          // sellerEmail: book?.seller?.email,
-          // sellerName: book?.seller?.name,
           seller: book.seller,
           name: book.name,
-          status: book.status,
+          // status: book.status,
           quantity: 1,
           price: session.amount_total / 100,
+          image: book?.image,
         };
         const result = await ordersCollection.insertOne(orderInfo);
         //update book quantity
@@ -177,7 +176,7 @@ async function run() {
     //inventory
     app.get("/my-inventory/:email", async (req, res) => {
       const email = req.params.email;
-      const result = await ordersCollection
+      const result = await booksCollection
         .find({
           "seller.email": email,
         })
