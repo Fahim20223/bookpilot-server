@@ -64,6 +64,7 @@ async function run() {
     const booksCollection = db.collection("books");
     const ordersCollection = db.collection("orders");
     const usersCollection = db.collection("users");
+    const sellerRequestCollection = db.collection("sellerRequests");
 
     //save a book data
 
@@ -168,11 +169,12 @@ async function run() {
     });
 
     //get all orders for a customer by email
-    app.get("/my-orders/:email", async (req, res) => {
-      const email = req.params.email;
+    app.get("/my-orders", verifyJWT, async (req, res) => {
+      // const email = req.params.email;
+
       const result = await ordersCollection
         .find({
-          customer: email,
+          customer: req.tokenEmail,
         })
         .toArray();
       res.send(result);
@@ -231,11 +233,18 @@ async function run() {
     });
 
     //get a user's role
-    app.get("/user/role/:email", verifyJWT, async (req, res) => {
+    app.get("/user/role", verifyJWT, async (req, res) => {
       console.log(req.tokenEmail);
-      const email = req.params.email;
-      const result = await usersCollection.findOne({ email });
+      // const email = req.params.email;
+      const result = await usersCollection.findOne({ email: req.tokenEmail });
       res.send({ role: result?.role });
+    });
+
+    //save become-seller request
+    app.post("/become-seller", verifyJWT, async (req, res) => {
+      const email = req.tokenEmail;
+      const result = await sellerRequestCollection.insertOne({ email });
+      res.send(result);
     });
 
     await client.db("admin").command({ ping: 1 });
