@@ -28,6 +28,22 @@ app.use(
 );
 app.use(express.json());
 
+// jwt middlewares
+const verifyJWT = async (req, res, next) => {
+  const token = req?.headers?.authorization?.split(" ")[1];
+  console.log(token);
+  if (!token) return res.status(401).send({ message: "Unauthorized Access!" });
+  try {
+    const decoded = await admin.auth().verifyIdToken(token);
+    req.tokenEmail = decoded.email;
+    console.log(decoded);
+    next();
+  } catch (err) {
+    console.log(err);
+    return res.status(401).send({ message: "Unauthorized Access!", err });
+  }
+};
+
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@flash0.nw85ito.mongodb.net/?appName=Flash0`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -215,7 +231,8 @@ async function run() {
     });
 
     //get a user's role
-    app.get("/user/role/:email", async (req, res) => {
+    app.get("/user/role/:email", verifyJWT, async (req, res) => {
+      console.log(req.tokenEmail);
       const email = req.params.email;
       const result = await usersCollection.findOne({ email });
       res.send({ role: result?.role });
