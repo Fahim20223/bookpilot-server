@@ -65,6 +65,7 @@ async function run() {
     const ordersCollection = db.collection("orders");
     const usersCollection = db.collection("users");
     const sellerRequestCollection = db.collection("sellerRequests");
+    const wishlistsCollection = db.collection("wishlists");
 
     //role middlewares
     const verifyADMIN = async (req, res, next) => {
@@ -106,6 +107,7 @@ async function run() {
       res.send(result);
     });
 
+    //details-page
     app.get("/books/:id", async (req, res) => {
       const id = req.params.id;
       const result = await booksCollection.findOne({ _id: new ObjectId(id) });
@@ -131,6 +133,22 @@ async function run() {
         $set: data,
       };
       const result = await booksCollection.updateOne(query, update);
+      res.send(result);
+    });
+
+    //push books-wishlist
+    app.post("/wishlists/:id", async (req, res) => {
+      const data = req.body;
+      const result = await wishlistsCollection.insertOne(data);
+      res.send(result);
+    });
+
+    //get-wishlists
+    app.get("/my-wishlists", async (req, res) => {
+      const email = req.query.email;
+      const result = await wishlistsCollection
+        .find({ userEmail: email })
+        .toArray();
       res.send(result);
     });
 
