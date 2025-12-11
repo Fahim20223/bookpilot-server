@@ -66,9 +66,32 @@ async function run() {
     const usersCollection = db.collection("users");
     const sellerRequestCollection = db.collection("sellerRequests");
 
-    //save a book data
+    //role middlewares
+    const verifyADMIN = async (req, res, next) => {
+      const email = req.tokenEmail;
+      const user = await usersCollection.findOne({ email });
+      if (user?.role !== "admin")
+        return res
+          .status(403)
+          .send({ message: "Admin only Actions!", role: user?.role });
 
-    app.post("/books", async (req, res) => {
+      next();
+    };
+
+    const verifyLIBRARIAN = async (req, res, next) => {
+      const email = req.tokenEmail;
+      const user = await usersCollection.findOne({ email });
+      if (user?.role !== "librarian")
+        return res
+          .status(403)
+          .send({ message: "Library only Actions!", role: user?.role });
+
+      next();
+    };
+
+    //save a book data in db
+
+    app.post("/books", verifyJWT, verifyLIBRARIAN, async (req, res) => {
       const bookData = req.body;
       console.log("Book data being saved:", bookData);
       const result = await booksCollection.insertOne(bookData);
@@ -182,26 +205,36 @@ async function run() {
 
     //manage orders
     //get all orders for a seller by email
-    app.get("/manage-orders/:email", async (req, res) => {
-      const email = req.params.email;
-      const result = await ordersCollection
-        .find({
-          "seller.email": email,
-        })
-        .toArray();
-      res.send(result);
-    });
+    app.get(
+      "/manage-orders/:email",
+      verifyJWT,
+      verifyLIBRARIAN,
+      async (req, res) => {
+        const email = req.params.email;
+        const result = await ordersCollection
+          .find({
+            "seller.email": email,
+          })
+          .toArray();
+        res.send(result);
+      }
+    );
 
     //inventory
-    app.get("/my-inventory/:email", async (req, res) => {
-      const email = req.params.email;
-      const result = await booksCollection
-        .find({
-          "seller.email": email,
-        })
-        .toArray();
-      res.send(result);
-    });
+    app.get(
+      "/my-inventory/:email",
+      verifyJWT,
+      verifyLIBRARIAN,
+      async (req, res) => {
+        const email = req.params.email;
+        const result = await booksCollection
+          .find({
+            "seller.email": email,
+          })
+          .toArray();
+        res.send(result);
+      }
+    );
 
     //save or update a user in db
     app.post("/user", async (req, res) => {
@@ -254,13 +287,13 @@ async function run() {
     });
 
     //get all requests for admin
-    app.get("/seller-requests", verifyJWT, async (req, res) => {
+    app.get("/seller-requests", verifyJWT, verifyADMIN, async (req, res) => {
       const result = await sellerRequestCollection.find().toArray();
       res.send(result);
     });
 
     //get all users for admin
-    app.get("/users", verifyJWT, async (req, res) => {
+    app.get("/users", verifyJWT, verifyADMIN, async (req, res) => {
       const adminEmail = req.tokenEmail;
       const result = await usersCollection
         .find({ email: { $ne: adminEmail } })
@@ -269,7 +302,7 @@ async function run() {
     });
 
     //update a user's role
-    app.patch("/update-role", verifyJWT, async (req, res) => {
+    app.patch("/update-role", verifyJWT, verifyADMIN, async (req, res) => {
       const { email, role } = req.body;
       const result = await usersCollection.updateOne(
         { email },
