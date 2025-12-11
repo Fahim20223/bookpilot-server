@@ -120,6 +120,18 @@ async function run() {
       res.send(result);
     });
 
+    //books-update
+    app.put("/books/:id", async (req, res) => {
+      const id = req.params.id;
+      const data = req.body;
+      const query = { _id: new ObjectId(id) };
+      const update = {
+        $set: data,
+      };
+      const result = await booksCollection.updateOne(query, update);
+      res.send(result);
+    });
+
     //payment endpoint
     app.post("/create-checkout-session", async (req, res) => {
       const paymentInfo = req.body;
