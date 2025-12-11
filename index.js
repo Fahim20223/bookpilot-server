@@ -243,8 +243,29 @@ async function run() {
     //save become-seller request
     app.post("/become-seller", verifyJWT, async (req, res) => {
       const email = req.tokenEmail;
+      const alreadyExist = await sellerRequestCollection.findOne({ email });
+      if (alreadyExist) {
+        return res
+          .status(409)
+          .send({ message: "Already requested , please wait" });
+      }
       const result = await sellerRequestCollection.insertOne({ email });
       res.send(result);
+    });
+
+    //get all requests for admin
+    app.get("/seller-requests", verifyJWT, async (req, res) => {
+      const result = await sellerRequestCollection.find().toArray();
+      res.send(result);
+    });
+
+    //update a user's role
+    app.patch("/update-role", verifyJWT, async (req, res) => {
+      const { email, role } = req.body;
+      const result = await usersCollection.updateOne({ email }, { $set: role });
+      await sellerRequestCollection.deleteOne({ email });
+
+      console.log(result);
     });
 
     await client.db("admin").command({ ping: 1 });
