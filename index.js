@@ -110,6 +110,16 @@ async function run() {
       res.send(result);
     });
 
+    //latest-books
+    app.get("/latest-books", async (req, res) => {
+      const result = await booksCollection
+        .find({ status: "published" })
+        .sort({ createdAt: "desc" })
+        .limit(6)
+        .toArray();
+      res.send(result);
+    });
+
     //payment endpoint
     app.post("/create-checkout-session", async (req, res) => {
       const paymentInfo = req.body;
