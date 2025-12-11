@@ -259,13 +259,25 @@ async function run() {
       res.send(result);
     });
 
+    //get all users for admin
+    app.get("/users", verifyJWT, async (req, res) => {
+      const adminEmail = req.tokenEmail;
+      const result = await usersCollection
+        .find({ email: { $ne: adminEmail } })
+        .toArray();
+      res.send(result);
+    });
+
     //update a user's role
     app.patch("/update-role", verifyJWT, async (req, res) => {
       const { email, role } = req.body;
-      const result = await usersCollection.updateOne({ email }, { $set: role });
+      const result = await usersCollection.updateOne(
+        { email },
+        { $set: { role } }
+      );
       await sellerRequestCollection.deleteOne({ email });
 
-      console.log(result);
+      res.send(result);
     });
 
     await client.db("admin").command({ ping: 1 });
