@@ -100,7 +100,9 @@ async function run() {
 
     //get all books
     app.get("/books", async (req, res) => {
-      const result = await booksCollection.find().toArray();
+      const result = await booksCollection
+        .find({ status: "published" })
+        .toArray();
       res.send(result);
     });
 
