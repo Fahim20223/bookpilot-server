@@ -136,8 +136,10 @@ async function run() {
       res.send(result);
     });
 
+    //delete orders for
+
     //push books-wishlist
-    app.post("/wishlists/:id", async (req, res) => {
+    app.post("/wishlists/:id", verifyJWT, verifyLIBRARIAN, async (req, res) => {
       const data = req.body;
       const result = await wishlistsCollection.insertOne(data);
       res.send(result);
@@ -179,11 +181,11 @@ async function run() {
           customer: paymentInfo?.customer.email,
         },
         success_url: `${process.env.CLIENT_DOMAIN}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${process.env.CLIENT_DOMAIN}/books/${paymentInfo?.bookId}`,
+        cancel_url: `${process.env.CLIENT_DOMAIN}/payment-cancelled?session_id={CHECKOUT_SESSION_ID}`,
       });
       res.send({ url: session.url });
     });
-
+    // cancel_url: `${process.env.CLIENT_DOMAIN}/books/${paymentInfo?.bookId}
     app.post("/payment-success", async (req, res) => {
       const { sessionId } = req.body;
       const session = await stripe.checkout.sessions.retrieve(sessionId);
@@ -354,6 +356,29 @@ async function run() {
 
       res.send(result);
     });
+
+    // Create a new order
+    // app.post("/orders", verifyJWT, async (req, res) => {
+    //   try {
+    //     const orderData = req.body;
+
+    //     // Add customer email from JWT if not sent
+    //     orderData.customer = orderData.customer || req.tokenEmail;
+
+    //     const result = await ordersCollection.insertOne(orderData);
+
+    //     res.send({
+    //       success: true,
+    //       message: "Order placed successfully",
+    //       orderId: result.insertedId,
+    //     });
+    //   } catch (err) {
+    //     console.error("Place order error:", err);
+    //     res
+    //       .status(500)
+    //       .send({ success: false, message: "Failed to place order" });
+    //   }
+    // });
 
     await client.db("admin").command({ ping: 1 });
     console.log(
