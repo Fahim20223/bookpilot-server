@@ -136,7 +136,19 @@ async function run() {
       res.send(result);
     });
 
-    //delete orders for
+    //delete orders for librarian
+    app.delete(
+      "/manage-orders/:id",
+      verifyJWT,
+      verifyLIBRARIAN,
+      async (req, res) => {
+        const id = req.params.id;
+
+        const query = { _id: new ObjectId(id) };
+        const result = await ordersCollection.deleteOne(query);
+        res.send(result);
+      }
+    );
 
     //push books-wishlist
     app.post("/wishlists/:id", verifyJWT, verifyLIBRARIAN, async (req, res) => {
