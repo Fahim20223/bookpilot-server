@@ -247,7 +247,56 @@ async function run() {
       );
     });
 
-    //get all orders for a customer by email
+    // PATCH: Verify payment & update order when confirmed
+    app.patch("/payment-success", async (req, res) => {
+      try {
+        const { sessionID } = req.body;
+        const session = await stripe.checkout.sessions.retrieve(sessionID);
+
+        // Find the order by transactionId
+        const order = await ordersCollection.findOne({
+          transactionId: session.payment_intent,
+        });
+
+        if (!order) {
+          return res
+            .status(404)
+            .send({ success: false, message: "Order not found" });
+        }
+
+        // Update order only if not already completed
+        if (order.status !== "completed") {
+          await ordersCollection.updateOne(
+            { _id: order._id },
+            {
+              $set: {
+                paymentStatus: "paid",
+                status: "completed",
+                paidAt: new Date(),
+              },
+            }
+          );
+
+          // Update book quantity
+          await booksCollection.updateOne(
+            { _id: new ObjectId(order.bookId) },
+            { $inc: { quantity: -1 } }
+          );
+        }
+
+        res.send({
+          success: true,
+          message: "Payment verified & order updated",
+          transactionId: session.payment_intent,
+        });
+      } catch (error) {
+        console.log("Payment patch error:", error);
+        res
+          .status(500)
+          .send({ success: false, message: "Payment update failed" });
+      }
+    });
+
     app.get("/my-orders", verifyJWT, async (req, res) => {
       // const email = req.params.email;
 
@@ -369,28 +418,63 @@ async function run() {
       res.send(result);
     });
 
-    // Create a new order
-    // app.post("/orders", verifyJWT, async (req, res) => {
-    //   try {
-    //     const orderData = req.body;
+    //create unpaid order
+    app.post("/orders", verifyJWT, async (req, res) => {
+      try {
+        const order = req.body;
+        order.customer = req.tokenEmail;
+        order.status = "pending";
+        order.paymentStatus = "unpaid";
+        order.createdAt = new Date();
+        const result = await ordersCollection.insertOne(order);
+        res.send({
+          success: true,
+          message: "order saved successfully",
+          orderId: result.insertedId,
+        });
+      } catch (error) {
+        console.log("Error", error);
+        res.status(500).send({ success: false, message: "order failed" });
+      }
+    });
 
-    //     // Add customer email from JWT if not sent
-    //     orderData.customer = orderData.customer || req.tokenEmail;
+    //cancel order if any unpaid & pending
+    app.patch("/order-cancel/:id", verifyJWT, async (req, res) => {
+      const id = req.params.id;
+      const result = await ordersCollection.updateOne(
+        {
+          _id: new ObjectId(id),
+          customer: req.tokenEmail,
+          status: "pending",
+        },
+        { $set: { status: "cancelled" } }
+      );
+      res.send(result);
+    });
 
-    //     const result = await ordersCollection.insertOne(orderData);
+    app.patch("/orders/:id/paid", verifyJWT, async (req, res) => {
+      const { id } = req.params;
+      try {
+        const result = await ordersCollection.updateOne(
+          { _id: new ObjectId(id), customer: req.tokenEmail },
+          {
+            $set: { status: "paid", paymentStatus: "paid", paidAt: new Date() },
+          }
+        );
 
-    //     res.send({
-    //       success: true,
-    //       message: "Order placed successfully",
-    //       orderId: result.insertedId,
-    //     });
-    //   } catch (err) {
-    //     console.error("Place order error:", err);
-    //     res
-    //       .status(500)
-    //       .send({ success: false, message: "Failed to place order" });
-    //   }
-    // });
+        if (result.modifiedCount > 0) {
+          return res.send({ success: true, message: "Order marked as paid" });
+        }
+        res
+          .status(404)
+          .send({ success: false, message: "Order not found or already paid" });
+      } catch (err) {
+        console.log(err);
+        res
+          .status(500)
+          .send({ success: false, message: "Failed to update order" });
+      }
+    });
 
     await client.db("admin").command({ ping: 1 });
     console.log(
