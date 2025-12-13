@@ -30,8 +30,9 @@ app.use(express.json());
 
 // jwt middlewares
 const verifyJWT = async (req, res, next) => {
+  // console.log(req.headers);
   const token = req?.headers?.authorization?.split(" ")[1];
-  console.log(token);
+  // console.log(token);
   if (!token) return res.status(401).send({ message: "Unauthorized Access!" });
   try {
     const decoded = await admin.auth().verifyIdToken(token);
@@ -189,6 +190,7 @@ async function run() {
         customer_email: paymentInfo?.customer?.email,
         mode: "payment",
         metadata: {
+          orderId: paymentInfo.bookId, // Pass order ID
           bookId: paymentInfo?.bookId,
           customer: paymentInfo?.customer.email,
         },
@@ -197,66 +199,190 @@ async function run() {
       });
       res.send({ url: session.url });
     });
+
     // cancel_url: `${process.env.CLIENT_DOMAIN}/books/${paymentInfo?.bookId}
-    app.post("/payment-success", async (req, res) => {
-      const { sessionId } = req.body;
-      const session = await stripe.checkout.sessions.retrieve(sessionId);
-      // console.log(session);
+    // app.post("/payment-success", async (req, res) => {
+    //   const { sessionId } = req.body;
+    //   const session = await stripe.checkout.sessions.retrieve(sessionId);
+    //   // console.log(session);
 
-      const book = await booksCollection.findOne({
-        _id: new ObjectId(session.metadata.bookId),
-      });
+    //   const book = await booksCollection.findOne({
+    //     _id: new ObjectId(session.metadata.bookId),
+    //   });
 
-      const order = await ordersCollection.findOne({
-        transactionId: session.payment_intent,
-      });
+    //   const order = await ordersCollection.findOne({
+    //     transactionId: session.payment_intent,
+    //   });
 
-      if (session.status === "complete" && book && !order) {
-        //save order data in db
-        const orderInfo = {
-          bookId: session.metadata.bookId,
-          transactionId: session.payment_intent,
-          customer: session.metadata.customer,
-          status: "pending",
-          seller: book.seller,
-          name: book.name,
-          // status: book.status,
-          quantity: 1,
-          price: session.amount_total / 100,
-          image: book?.image,
-        };
-        const result = await ordersCollection.insertOne(orderInfo);
-        //update book quantity
-        await booksCollection.updateOne(
-          {
-            _id: new ObjectId(session.metadata.bookId),
-          },
-          { $inc: { quantity: -1 } }
-        );
+    //   if (session.status === "complete" && book && !order) {
+    //     //save order data in db
+    //     const orderInfo = {
+    //       bookId: session.metadata.bookId,
+    //       transactionId: session.payment_intent,
+    //       customer: session.metadata.customer,
+    //       status: "pending",
+    //       seller: book.seller,
+    //       name: book.name,
+    //       // status: book.status,
+    //       quantity: 1,
+    //       price: session.amount_total / 100,
+    //       image: book?.image,
+    //     };
+    //     const result = await ordersCollection.insertOne(orderInfo);
+    //     //update book quantity
+    //     await booksCollection.updateOne(
+    //       {
+    //         _id: new ObjectId(session.metadata.bookId),
+    //       },
+    //       { $inc: { quantity: -1 } }
+    //     );
 
-        return res.send({
-          transactionId: session.payment_intent,
-          orderId: result.insertedId,
-        });
-      }
-      res.send(
-        res.send({
-          transactionId: session.payment_intent,
-          orderId: order._id,
-        })
-      );
-    });
+    //     return res.send({
+    //       transactionId: session.payment_intent,
+    //       orderId: result.insertedId,
+    //     });
+    //   }
+    //   res.send(
+    //     res.send({
+    //       transactionId: session.payment_intent,
+    //       orderId: order._id,
+    //     })
+    //   );
+    // });
 
     // PATCH: Verify payment & update order when confirmed
-    app.patch("/payment-success", async (req, res) => {
-      try {
-        const { sessionID } = req.body;
-        const session = await stripe.checkout.sessions.retrieve(sessionID);
+    // app.patch("/payment-success", async (req, res) => {
+    //   try {
+    //     const { sessionID } = req.body;
+    //     const session = await stripe.checkout.sessions.retrieve(sessionID);
 
-        // Find the order by transactionId
+    //     // Find the order by transactionId
+    //     const order = await ordersCollection.findOne({
+    //       transactionId: session.payment_intent,
+    //     });
+
+    //     if (!order) {
+    //       return res
+    //         .status(404)
+    //         .send({ success: false, message: "Order not found" });
+    //     }
+
+    //     // Update order only if not already completed
+    //     if (order.status !== "completed") {
+    //       await ordersCollection.updateOne(
+    //         { _id: order._id },
+    //         {
+    //           $set: {
+    //             paymentStatus: "paid",
+    //             status: "completed",
+    //             paidAt: new Date(),
+    //           },
+    //         }
+    //       );
+
+    //       // Update book quantity
+    //       await booksCollection.updateOne(
+    //         { _id: new ObjectId(order.bookId) },
+    //         { $inc: { quantity: -1 } }
+    //       );
+    //     }
+
+    //     res.send({
+    //       success: true,
+    //       message: "Payment verified & order updated",
+    //       transactionId: session.payment_intent,
+    //     });
+    //   } catch (error) {
+    //     console.log("Payment patch error:", error);
+    //     res
+    //       .status(500)
+    //       .send({ success: false, message: "Payment update failed" });
+    //   }
+    // });
+
+    // PATCH: Verify payment & update order when confirmed
+    // app.post("/payment-success", async (req, res) => {
+    //   try {
+    //     const { sessionId } = req.body; // frontend sends Stripe sessionId
+    //     if (!sessionId)
+    //       return res.status(400).send({ message: "sessionId required" });
+
+    //     // Retrieve the session from Stripe
+    //     const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+    //     if (!session)
+    //       return res.status(404).send({ message: "Stripe session not found" });
+
+    //     // Find the order by transactionId
+    //     const order = await ordersCollection.findOne({
+    //       transactionId: session.payment_intent,
+    //     });
+
+    //     if (!order) {
+    //       return res
+    //         .status(404)
+    //         .send({ success: false, message: "Order not found" });
+    //     }
+
+    //     // Only update if not already paid
+    //     if (order.paymentStatus !== "paid") {
+    //       await ordersCollection.updateOne(
+    //         { _id: order._id },
+    //         {
+    //           $set: {
+    //             paymentStatus: "paid",
+    //             status: "completed",
+    //             paidAt: new Date(),
+    //           },
+    //         }
+    //       );
+
+    //       // Decrease book quantity
+    //       await booksCollection.updateOne(
+    //         { _id: new ObjectId(order.bookId) },
+    //         { $inc: { quantity: -1 } }
+    //       );
+    //     }
+
+    //     res.send({
+    //       success: true,
+    //       message: "Payment verified & order updated",
+    //       orderId: order._id,
+    //       transactionId: session.payment_intent,
+    //     });
+    //   } catch (error) {
+    //     console.log("Payment success error:", error);
+    //     res
+    //       .status(500)
+    //       .send({ success: false, message: "Payment verification failed" });
+    //   }
+    // });
+
+    // POST: Verify payment & update order when confirmed
+    app.post("/payment-success", verifyJWT, async (req, res) => {
+      try {
+        const { sessionId } = req.body;
+        // console.log(req.body);
+        if (!sessionId)
+          return res.status(400).send({ message: "sessionId required" });
+
+        // Retrieve the session from Stripe
+        const session = await stripe.checkout.sessions.retrieve(sessionId);
+        console.log(session);
+        if (!session)
+          return res.status(404).send({ message: "Stripe session not found" });
+
+        // Find the order by transactionId and customer email
+        console.log(session.metadata.bookId);
         const order = await ordersCollection.findOne({
-          transactionId: session.payment_intent,
+          // transactionId: session.payment_intent,
+
+          bookId: session.metadata.bookId,
+          // customer: req.tokenEmail,
+          //
+          // ensures only customer can mark their own order
         });
+        console.log(order);
 
         if (!order) {
           return res
@@ -264,36 +390,51 @@ async function run() {
             .send({ success: false, message: "Order not found" });
         }
 
-        // Update order only if not already completed
-        if (order.status !== "completed") {
-          await ordersCollection.updateOne(
-            { _id: order._id },
+        // Only update if not already paid
+        if (order.paymentStatus !== "paid") {
+          const result = await ordersCollection.updateOne(
+            { _id: order._id, customer: req.tokenEmail },
             {
               $set: {
+                status: "paid",
                 paymentStatus: "paid",
-                status: "completed",
                 paidAt: new Date(),
               },
             }
           );
 
-          // Update book quantity
-          await booksCollection.updateOne(
-            { _id: new ObjectId(order.bookId) },
-            { $inc: { quantity: -1 } }
-          );
-        }
+          // Update book quantity if order updated successfully
+          if (result.modifiedCount > 0) {
+            await booksCollection.updateOne(
+              { _id: new ObjectId(order.bookId) },
+              { $inc: { quantity: -1 } }
+            );
 
-        res.send({
-          success: true,
-          message: "Payment verified & order updated",
-          transactionId: session.payment_intent,
-        });
+            return res.send({
+              success: true,
+              message: "Payment verified & order updated",
+              orderId: order._id,
+              transactionId: session.payment_intent,
+            });
+          } else {
+            return res.status(400).send({
+              success: false,
+              message: "Order already paid or cannot update",
+            });
+          }
+        } else {
+          return res.send({
+            success: true,
+            message: "Order already marked as paid",
+            orderId: order._id,
+            transactionId: session.payment_intent,
+          });
+        }
       } catch (error) {
-        console.log("Payment patch error:", error);
+        console.log("Payment success error:", error);
         res
           .status(500)
-          .send({ success: false, message: "Payment update failed" });
+          .send({ success: false, message: "Payment verification failed" });
       }
     });
 
@@ -452,29 +593,29 @@ async function run() {
       res.send(result);
     });
 
-    app.patch("/orders/:id/paid", verifyJWT, async (req, res) => {
-      const { id } = req.params;
-      try {
-        const result = await ordersCollection.updateOne(
-          { _id: new ObjectId(id), customer: req.tokenEmail },
-          {
-            $set: { status: "paid", paymentStatus: "paid", paidAt: new Date() },
-          }
-        );
+    // app.patch("/orders/:id/paid", verifyJWT, async (req, res) => {
+    //   const { id } = req.params;
+    //   try {
+    //     const result = await ordersCollection.updateOne(
+    //       { _id: new ObjectId(id), customer: req.tokenEmail },
+    //       {
+    //         $set: { status: "paid", paymentStatus: "paid", paidAt: new Date() },
+    //       }
+    //     );
 
-        if (result.modifiedCount > 0) {
-          return res.send({ success: true, message: "Order marked as paid" });
-        }
-        res
-          .status(404)
-          .send({ success: false, message: "Order not found or already paid" });
-      } catch (err) {
-        console.log(err);
-        res
-          .status(500)
-          .send({ success: false, message: "Failed to update order" });
-      }
-    });
+    //     if (result.modifiedCount > 0) {
+    //       return res.send({ success: true, message: "Order marked as paid" });
+    //     }
+    //     res
+    //       .status(404)
+    //       .send({ success: false, message: "Order not found or already paid" });
+    //   } catch (err) {
+    //     console.log(err);
+    //     res
+    //       .status(500)
+    //       .send({ success: false, message: "Failed to update order" });
+    //   }
+    // });
 
     await client.db("admin").command({ ping: 1 });
     console.log(
