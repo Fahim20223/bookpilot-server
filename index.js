@@ -152,18 +152,21 @@ async function run() {
     );
 
     //push books-wishlist
-    app.post("/wishlists/:id", verifyJWT, verifyLIBRARIAN, async (req, res) => {
+    app.post("/wishlists/:id", verifyJWT, async (req, res) => {
       const data = req.body;
+
       const result = await wishlistsCollection.insertOne(data);
       res.send(result);
     });
 
     //get-wishlists
-    app.get("/my-wishlists", async (req, res) => {
+    app.get("/my-wishlists", verifyJWT, async (req, res) => {
       const email = req.query.email;
+
       const result = await wishlistsCollection
         .find({ userEmail: email })
         .toArray();
+
       res.send(result);
     });
 
