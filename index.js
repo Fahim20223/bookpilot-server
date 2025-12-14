@@ -101,11 +101,57 @@ async function run() {
     });
 
     //get all books
+    // app.get("/books", async (req, res) => {
+    //   const result = await booksCollection
+    //     .find({ status: "published" })
+    //     .toArray();
+    //   res.send(result);
+    // });
+
+    //get all the books by search & sort
+    // GET: all books with search, sort & pagination
+
     app.get("/books", async (req, res) => {
-      const result = await booksCollection
-        .find({ status: "published" })
-        .toArray();
-      res.send(result);
+      try {
+        const {
+          search = "",
+          sort = "price",
+          order = "asc",
+          limit = 0,
+          skip = 0,
+        } = req.query;
+
+        let query = { status: "published" };
+
+        if (search) {
+          // Case-insensitive & remove spaces for comparison
+          query.$expr = {
+            $regexMatch: {
+              input: {
+                $replaceAll: { input: "$name", find: " ", replacement: "" },
+              },
+              regex: search.replace(/\s+/g, ""),
+              options: "i",
+            },
+          };
+        }
+
+        const sortOption = {};
+        sortOption[sort] = order === "desc" ? -1 : 1;
+
+        const books = await booksCollection
+          .find(query)
+          .sort(sortOption)
+          .limit(Number(limit))
+          .skip(Number(skip))
+          .toArray();
+
+        // ✅ return ARRAY ONLY
+        res.send(books);
+      } catch (error) {
+        console.log(error);
+        res.status(500).send({ message: "Internal Server Error" });
+      }
     });
 
     //details-page
@@ -189,6 +235,60 @@ async function run() {
         res.send(result);
       }
     );
+
+    //invoices for user
+    app.get("/my-invoices", verifyJWT, async (req, res) => {
+      const invoices = await ordersCollection
+        .find({
+          customer: req.tokenEmail,
+          paymentStatus: "paid",
+        })
+        .sort({ paidAt: -1 })
+        .project({
+          transactionId: 1,
+          price: 1,
+          name: 1,
+          paidAt: 1,
+        })
+        .toArray();
+      res.send(invoices);
+    });
+
+    //total revenue
+    app.get("/admin-total-revenue", async (req, res) => {
+      const orders = await ordersCollection
+        .find({
+          paymentStatus: "paid",
+        })
+        .toArray();
+      const totalRevenue = orders.reduce((sum, order) => sum + order.price, 0);
+      res.send(totalRevenue);
+    });
+
+    // total orders
+    app.get("/admin-statistics", async (req, res) => {
+      try {
+        const orders = await ordersCollection
+          .find({ paymentStatus: "paid" })
+          .toArray();
+        let totalRevenue = 0;
+        orders.forEach((order) => {
+          totalRevenue += order.price;
+        });
+        const totalOrders = await ordersCollection.countDocuments();
+        const totalBooks = await booksCollection.countDocuments();
+        const totalUsers = await usersCollection.countDocuments();
+
+        res.send({
+          revenue: totalRevenue,
+          orders: totalOrders,
+          books: totalBooks,
+          users: totalUsers,
+        });
+      } catch (error) {
+        console.log(error);
+      }
+    });
 
     //payment endpoint
     app.post("/create-checkout-session", async (req, res) => {
@@ -420,6 +520,7 @@ async function run() {
             {
               $set: {
                 status: "paid",
+                transactionId: session.payment_intent,
                 paymentStatus: "paid",
                 paidAt: new Date(),
               },
