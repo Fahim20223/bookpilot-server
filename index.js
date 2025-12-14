@@ -170,6 +170,16 @@ async function run() {
       res.send(result);
     });
 
+
+//manage-books to get all books
+app.get("/manage-books",verifyJWT,verifyADMIN,async(req,res)=>{
+  const result = await booksCollection
+        .find()
+        .toArray();
+      res.send(result);
+})
+
+
     //payment endpoint
     app.post("/create-checkout-session", async (req, res) => {
       const paymentInfo = req.body;
