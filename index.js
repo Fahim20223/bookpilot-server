@@ -170,15 +170,25 @@ async function run() {
       res.send(result);
     });
 
-
-//manage-books to get all books
-app.get("/manage-books",verifyJWT,verifyADMIN,async(req,res)=>{
-  const result = await booksCollection
-        .find()
-        .toArray();
+    //manage-books to get all books
+    app.get("/manage-books", verifyJWT, verifyADMIN, async (req, res) => {
+      const result = await booksCollection.find().toArray();
       res.send(result);
-})
+    });
 
+    //manage-books to delete
+    app.delete(
+      "/manage-books/:id",
+      verifyJWT,
+      verifyADMIN,
+      async (req, res) => {
+        const id = req.params.id;
+
+        const query = { _id: new ObjectId(id) };
+        const result = await booksCollection.deleteOne(query);
+        res.send(result);
+      }
+    );
 
     //payment endpoint
     app.post("/create-checkout-session", async (req, res) => {
