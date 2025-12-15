@@ -226,6 +226,18 @@ async function run() {
       res.send(result);
     });
 
+    //admin to status changed
+    app.patch("/books-status", async (req, res) => {
+      const id = req.params.id;
+      const data = req.body;
+      const query = { _id: new ObjectId(id) };
+      const update = {
+        $set: data,
+      };
+      const result = await booksCollection.updateOne(query, update);
+      res.send(result);
+    });
+
     //manage-books to get all books
     app.get("/manage-books", verifyJWT, verifyADMIN, async (req, res) => {
       const result = await booksCollection.find().toArray();
