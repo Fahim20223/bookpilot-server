@@ -19,6 +19,7 @@
     "firebase": "^12.6.0",
     "firebase-admin": "^13.6.0",
     "mongodb": "^7.0.0",
+    "react-fast-marquee": "^1.6.5",
     "stripe": "^20.0.0"
   }
 }

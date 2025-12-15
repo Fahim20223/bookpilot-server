@@ -67,6 +67,7 @@ async function run() {
     const usersCollection = db.collection("users");
     const sellerRequestCollection = db.collection("sellerRequests");
     const wishlistsCollection = db.collection("wishlists");
+    const reviewsCollection = db.collection("reviews");
 
     //role middlewares
     const verifyADMIN = async (req, res, next) => {
@@ -213,6 +214,15 @@ async function run() {
         .find({ userEmail: email })
         .toArray();
 
+      res.send(result);
+    });
+
+    //customer wishlists delete from dashboard
+    app.delete("/wishlists/:id", verifyJWT, async (req, res) => {
+      const id = req.params.id;
+
+      const query = { _id: new ObjectId(id) };
+      const result = await wishlistsCollection.deleteOne(query);
       res.send(result);
     });
 
