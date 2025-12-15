@@ -254,19 +254,19 @@ async function run() {
       res.send(invoices);
     });
 
-    //total revenue
-    app.get("/admin-total-revenue", async (req, res) => {
-      const orders = await ordersCollection
-        .find({
-          paymentStatus: "paid",
-        })
-        .toArray();
-      const totalRevenue = orders.reduce((sum, order) => sum + order.price, 0);
-      res.send(totalRevenue);
-    });
+    // //total revenue
+    // app.get("/admin-total-revenue", async (req, res) => {
+    //   const orders = await ordersCollection
+    //     .find({
+    //       paymentStatus: "paid",
+    //     })
+    //     .toArray();
+    //   const totalRevenue = orders.reduce((sum, order) => sum + order.price, 0);
+    //   res.send(totalRevenue);
+    // });
 
-    // total orders
-    app.get("/admin-statistics", async (req, res) => {
+    // total orders admin statistics
+    app.get("/admin-statistics", verifyJWT, verifyADMIN, async (req, res) => {
       try {
         const orders = await ordersCollection
           .find({ paymentStatus: "paid" })
@@ -289,6 +289,83 @@ async function run() {
         console.log(error);
       }
     });
+
+    //customer statistics
+    // CUSTOMER STATISTICS
+    app.get("/customer-statistics", verifyJWT, async (req, res) => {
+      try {
+        const email = req.tokenEmail;
+
+        // Get all paid orders for this user
+        const orders = await ordersCollection
+          .find({ customer: email, paymentStatus: "paid" })
+          .toArray();
+
+        // If no orders, totalExpenses and totalBooks will be 0
+        const totalExpenses = orders.length
+          ? orders.reduce((sum, order) => sum + order.price, 0)
+          : 0;
+
+        const totalBooks = orders.length
+          ? orders.reduce((sum, order) => sum + order.quantity, 0)
+          : 0;
+
+        // Send data matching frontend keys
+        res.send({
+          expenses: totalExpenses,
+          books: totalBooks,
+        });
+      } catch (error) {
+        console.error(error);
+      }
+    });
+
+    //librarian section statistics
+    // Librarian statistics
+    app.get(
+      "/librarian-statistics",
+      verifyJWT,
+      verifyLIBRARIAN,
+      async (req, res) => {
+        try {
+          const librarianEmail = req.tokenEmail;
+
+          // Seller books
+          const books = await booksCollection
+            .find({ "seller.email": librarianEmail })
+            .toArray();
+
+          // Paid orders of this seller
+          const orders = await ordersCollection
+            .find({
+              "seller.email": librarianEmail,
+              paymentStatus: "paid",
+            })
+            .toArray();
+
+          // Total revenue
+          const totalRevenue = orders.reduce(
+            (sum, order) => sum + order.price,
+            0
+          );
+
+          // Total orders
+          const totalOrders = orders.length;
+
+          // Unique customers
+          const totalCustomers = new Set(orders.map((order) => order.customer));
+
+          res.send({
+            revenue: totalRevenue,
+            orders: totalOrders,
+            books: books.length,
+            customers: totalCustomers.size,
+          });
+        } catch (error) {
+          console.log("Librarian stats error:", error);
+        }
+      }
+    );
 
     //payment endpoint
     app.post("/create-checkout-session", async (req, res) => {
