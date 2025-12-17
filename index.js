@@ -68,7 +68,7 @@ async function run() {
     const usersCollection = db.collection("users");
     const sellerRequestCollection = db.collection("sellerRequests");
     const wishlistsCollection = db.collection("wishlists");
-    const reviewsCollection = db.collection("reviews");
+    // const reviewsCollection = db.collection("reviews");
 
     //role middlewares
     const verifyADMIN = async (req, res, next) => {
@@ -817,29 +817,22 @@ async function run() {
       res.send(result);
     });
 
-    // app.patch("/orders/:id/paid", verifyJWT, async (req, res) => {
-    //   const { id } = req.params;
-    //   try {
-    //     const result = await ordersCollection.updateOne(
-    //       { _id: new ObjectId(id), customer: req.tokenEmail },
-    //       {
-    //         $set: { status: "paid", paymentStatus: "paid", paidAt: new Date() },
-    //       }
-    //     );
-
-    //     if (result.modifiedCount > 0) {
-    //       return res.send({ success: true, message: "Order marked as paid" });
-    //     }
-    //     res
-    //       .status(404)
-    //       .send({ success: false, message: "Order not found or already paid" });
-    //   } catch (err) {
-    //     console.log(err);
-    //     res
-    //       .status(500)
-    //       .send({ success: false, message: "Failed to update order" });
-    //   }
-    // });
+    //update order status(librarian)
+    app.patch("/order/:id", async (req, res) => {
+      const { id } = req.params;
+      const { status } = req.body;
+      const result = await ordersCollection.updateOne(
+        {
+          _id: new ObjectId(id),
+          status: { $ne: "cancelled" },
+          paymentStatus: { $ne: "paid" },
+        },
+        {
+          $set: { status },
+        }
+      );
+      res.send(result);
+    });
 
     await client.db("admin").command({ ping: 1 });
     console.log(
