@@ -26,6 +26,7 @@ app.use(
     optionsSuccessStatus: 200,
   })
 );
+
 app.use(express.json());
 
 // jwt middlewares
@@ -98,6 +99,7 @@ async function run() {
       const bookData = req.body;
       console.log("Book data being saved:", bookData);
       const result = await booksCollection.insertOne(bookData);
+
       res.send(result);
     });
 
@@ -147,7 +149,7 @@ async function run() {
           .skip(Number(skip))
           .toArray();
 
-        // ✅ return ARRAY ONLY
+        //
         res.send(books);
       } catch (error) {
         console.log(error);
@@ -167,7 +169,7 @@ async function run() {
       const result = await booksCollection
         .find({ status: "published" })
         .sort({ createdAt: "desc" })
-        .limit(6)
+        .limit(4)
         .toArray();
       res.send(result);
     });
@@ -199,16 +201,26 @@ async function run() {
     );
 
     //push books-wishlist
-    app.post("/wishlists/:id", verifyJWT, async (req, res) => {
-      const data = req.body;
+    // app.post("/wishlists/:id", verifyJWT, async (req, res) => {
+    //   const data = req.body;
 
-      const result = await wishlistsCollection.insertOne(data);
+    //   const result = await wishlistsCollection.insertOne(data);
+    //   res.send(result);
+    // });
+    app.post("/wishlists/:id", verifyJWT, async (req, res) => {
+      const wishlistItem = {
+        ...req.body,
+        userEmail: req.tokenEmail, // 🔐 FORCE ownership
+        createdAt: new Date(),
+      };
+
+      const result = await wishlistsCollection.insertOne(wishlistItem);
       res.send(result);
     });
 
     //get-wishlists
     app.get("/my-wishlists", verifyJWT, async (req, res) => {
-      const email = req.query.email;
+      const email = req.tokenEmail;
 
       const result = await wishlistsCollection
         .find({ userEmail: email })
@@ -275,17 +287,6 @@ async function run() {
         .toArray();
       res.send(invoices);
     });
-
-    // //total revenue
-    // app.get("/admin-total-revenue", async (req, res) => {
-    //   const orders = await ordersCollection
-    //     .find({
-    //       paymentStatus: "paid",
-    //     })
-    //     .toArray();
-    //   const totalRevenue = orders.reduce((sum, order) => sum + order.price, 0);
-    //   res.send(totalRevenue);
-    // });
 
     // total orders admin statistics
     app.get("/admin-statistics", verifyJWT, verifyADMIN, async (req, res) => {
