@@ -227,7 +227,7 @@ async function run() {
     });
 
     //admin to status changed
-    app.patch("/books-status", async (req, res) => {
+    app.patch("/books-status/:id", verifyJWT, verifyADMIN, async (req, res) => {
       const id = req.params.id;
       const data = req.body;
       const query = { _id: new ObjectId(id) };
