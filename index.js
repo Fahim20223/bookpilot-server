@@ -21,7 +21,7 @@ admin.initializeApp({
 //middleware
 app.use(
   cors({
-    origin: [process.env.CLIENT_DOMAIN],
+    origin: ["https://book-pilot-2c633.web.app", "http://localhost:5173"],
     credentials: true,
     optionsSuccessStatus: 200,
   })
@@ -834,7 +834,7 @@ async function run() {
       res.send(result);
     });
 
-    await client.db("admin").command({ ping: 1 });
+    // await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
     );
