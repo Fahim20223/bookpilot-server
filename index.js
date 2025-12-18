@@ -21,7 +21,7 @@ admin.initializeApp({
 //middleware
 app.use(
   cors({
-    origin: ["https://book-pilot-2c633.web.app", "http://localhost:5173"],
+    origin: [process.env.CLIENT_DOMAIN, "http://localhost:5173"],
     credentials: true,
     optionsSuccessStatus: 200,
   })
