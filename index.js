@@ -116,13 +116,7 @@ async function run() {
 
     app.get("/books", async (req, res) => {
       try {
-        const {
-          search = "",
-          sort = "price",
-          order = "asc",
-          limit = 0,
-          skip = 0,
-        } = req.query;
+        const { search = "", sort = "price", order = "asc" } = req.query;
 
         let query = { status: "published" };
 
@@ -145,8 +139,7 @@ async function run() {
         const books = await booksCollection
           .find(query)
           .sort(sortOption)
-          .limit(Number(limit))
-          .skip(Number(skip))
+
           .toArray();
 
         //
